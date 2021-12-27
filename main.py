@@ -10,6 +10,14 @@ disclaimer = """
     This is free software, and you are welcome to redistribute it.
     """
 
+commands = """
+HELP                        GENERATES THIS MENU
+QUIT                        TERMINATES THE GAME, NO PROGRESS IS SAVED
+GO [DIRECTION]              MOVES THE PLAYER IN ANY CARDINAL DIRECTION
+USE [ITEM, TARGET]          USES AN ITEM ON THE SPECIFIED TARGET
+ATTACK [TARGET]             DO DAMAGE TO A SPECIFIED TARGET
+"""
+
 def main(level=Level(),npcs=[]):
     print(disclaimer)
     player = setupPlayer()
@@ -81,6 +89,8 @@ def get_command(player:Character,level:Level, npcs):
     if len(tokens)<2:
         if tokens[0] == "quit":
             quit()
+        elif tokens[0] == "help":
+            print(commands)
         else:
              raise IOError
     if tokens[0] == "go":
@@ -102,6 +112,10 @@ def move(player:Character, tokens, level:Level):
         player.move(tokens[1])
         if outside_of_map(player, level):
             print("You can't go that way")
+            player.location = old_location
+        if not level.level_map[player.location[0]][player.location[1]].biome.passable:
+            print(level.level_map[player.location[0]][player.location[1]].biome.description)
+            print("You determine this route is impassable and return the way you came")
             player.location = old_location
 
 def get_status(player:Character,tokens):
