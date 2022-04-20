@@ -4,6 +4,8 @@ from World.world import *
 from random import choice
 from command_parser import *
 
+
+
 disclaimer = """ 
     BORD! Copyright (C) 2021 Anthany Martin
     This program comes with ABSOLUTELY NO WARRANTY.
@@ -18,144 +20,171 @@ USE [ITEM, TARGET]          USES AN ITEM ON THE SPECIFIED TARGET
 ATTACK [TARGET]             DO DAMAGE TO A SPECIFIED TARGET
 """
 
-def main(level=Level(),npcs=[]):
-    print(disclaimer)
-    player = setupPlayer()
-    gameLoop(player, level, npcs)
+
+
+class Game:
     
-
-def roll(faces = 20):
-    return choice(range(1,faces+1))
-
-def attack(player: Character, tokens, npcs:dict,weapon = 0):
-    if tokens[1] in npcs.keys():
-        if npcs[tokens[1]].location == player.location:
-            hit = player.hit(roll(),weapon)
-            npcs[tokens[1]].health -= hit
-            print("you attack a %s for %s points of damage.\nThe %s has %s/100 health" % (tokens[1], hit,tokens[1],npcs[tokens[1]].health))
-            if npcs[tokens[1]].health < 1:
-                print("You have defeated the %s" % tokens[1])
-                npcs.pop(tokens[1])
-        else:
-            raise IOError
-    else:
-        raise IOError
-    
-
-def setupPlayer()->Character:
-    print("what is you name?:")
-    player_name = input()
-    return assignClass(player_name)    
-
-def assignClass(player_name)->Character:
-    print("Please select your class. \nChoose either; Warior, Explorer or Scholar:")
-    player_class = input()
-    if player_class in ("w","W","warior","Warior","WARIOR"):
-        return Warior(player_name)
-    elif player_class in ("e","E","explorer","Explorer","EXPLORER"):
-        return Explorer(player_name)
-    elif player_class in ("s","S","scholar","Scholar","SCHOLAR"):
-        return Scholar(player_name)
-    else:
-        print("Something went wrong lets try again")
-        assignClass(player_name)
-
-def update(level:Level, npcs:dict, player):
-    for tile in level:
-        tile.update()
-    for npc in npcs.values():
-        npc.turn(player, roll())
-
-def gameLoop(player:Character, level:Level, npcs):
-    while True:
-        loc = level.level_map[player.location[0]][player.location[1]]
-        print(loc.biome.description)
-        if len(loc.visible) > 0:
-            print("You see:")
-            for item in loc.visible:
-                print(item.description)
-        player_turn(player,level, npcs)
-        update(level, npcs, player)
-        if player.health < 1:
-            print("%s, you have died. GAME OVER" % player.name)
-            print("%s- strength: %s speed: %s smarts: %s" % (player.name, player.strength,player.speed,player.smarts))
-            break
-        if len(npcs) < 1:
-            print("You are victorious")
-            break
-
-def get_command(player:Character,level:Level, npcs):
-    tokens = normalize(tokenize(input("%s :>" % player.name)),default_thesaurus)
-    if len(tokens)<2:
-        if tokens[0] == "quit":
-            quit()
-        elif tokens[0] == "help":
-            print(commands)
-        else:
-             raise IOError
-    if tokens[0] == "go":
-        move(player,tokens,level)
-    elif tokens[0] == "get":
-        get_status(player, tokens)
-    elif tokens[0] == "attack":
-        attack(player,tokens, npcs)
-    elif tokens[0] == "use":
-        use_item(player,tokens,npcs)
-    else:
-        raise IOError
-
-def move(player:Character, tokens, level:Level):
-    if len(tokens) > 2 or len(tokens) < 1:
-        raise IOError
-    else:
-        old_location = player.location.copy()
-        player.move(tokens[1])
-        if outside_of_map(player, level):
-            print("You can't go that way")
-            player.location = old_location
-        if not level.level_map[player.location[0]][player.location[1]].biome.passable:
-            print(level.level_map[player.location[0]][player.location[1]].biome.description)
-            print("You determine this route is impassable and return the way you came")
-            player.location = old_location
-
-def get_status(player:Character,tokens):
-    if len(tokens) > 2:
-        raise IOError
-    elif len(tokens) == 2:
-        _ = {
-            "coords": player.location,
-            "health": player.health,
-            "inventory":str(list(player.items.values())),
+    def __init__(self, player:Character, npcs: dict[NPC], level:Level):
+        self.player = player
+        self.npcs = npcs
+        self.level = level
+        self.tokens = [""]
+        self.weapon = 0
+        self.buffs = {
+            'permanant':{},
+            'temporary':{}
         }
-        if tokens[1] in _.keys():
-           print(_[tokens[1]])
-    else:
-        raise IOError
 
+    def roll(self, faces = 20):
+        return choice(range(1,faces+1))
 
-def player_turn(player, level, npcs):
-    try:
-        get_command(player, level, npcs)
-    except IOError:
-        print("something went wrong, try again")
-        get_command(player, level, npcs)
-
-def use_item(player,tokens,npcs):
-    try:
-        if tokens[1] in player.items.keys():
-            item = player.items[tokens[1]]
-            if item.__class__ is Weapons:
-                tokens.remove(tokens[1])
-                attack(player, tokens, npcs, item.attack)
+    def attack(self):
+        if self.tokens[1] in self.npcs.keys():
+            if self.npcs[self.tokens[1]].location == self.player.location:
+                hit = self.player.hit(self.roll(),self.weapon)
+                self.npcs[self.tokens[1]].health -= hit
+                print("you attack a %s for %s points of damage.\nThe %s has %s/100 health" % (self.tokens[1], hit,self.tokens[1],self.npcs[self.tokens[1]].health))
+                if npcs[tokens[1]].health < 1:
+                    print("You have defeated the %s" % self.tokens[1])
+                    self.npcs.pop(self.tokens[1])
             else:
                 raise IOError
         else:
             raise IOError
-    except IndexError:
-        raise IOError
 
-def outside_of_map(player:Character, level: Level) -> bool:
-    return player.location[0] > len(level.level_map)-1 or player.location[1] > len(level.level_map[0])-1
+    def update(self):
+        for tile in self.level:
+            tile.update()
+        for npc in self.npcs.values():
+            npc.turn(self.player, self.roll())
+        self.buffs["permanant"].clear()
+        for buff in self.buffs["temporary"]:
+            self.player.__dict__[buff] -= self.buffs["temporary"][buff]
+        self.buffs["temporary"].clear()
+
+    
+    def gameLoop(self):
+        while True:
+            print(f"{self.player.getLocation()}")
+            loc = self.level.getPosition(*self.player.getLocation())
+            print(loc.biome.description)
+            if len(loc.visible) > 0:
+                print("You see:")
+                for item in loc.visible:
+                    print(item.description)
+            self.player_turn()
+            self.update()
+            if self.player.health < 1:
+                print("%s, you have died. GAME OVER" % self.player.name)
+                print("%s- strength: %s speed: %s smarts: %s" % (self.player.name, self.player.strength,self.player.speed,self.player.smarts))
+                break
+            if len(npcs) < 1:
+                print("You are victorious")
+                break
+    
+    def get_command(self):
+        tokens = normalize(tokenize(input("%s :>" % self.player.name)),default_thesaurus)
+        self.tokens = tokens
+        if len(tokens)<2:
+            if tokens[0] == "quit":
+                quit()
+            elif tokens[0] == "help":
+                print(commands)
+            else:
+                raise IOError
+        if tokens[0] == "go":
+            self.move()
+        elif tokens[0] == "get":
+            self.get_status()
+        elif tokens[0] == "attack":
+            self.attack()
+        elif tokens[0] == "use":
+            self.use_item()
+        else:
+            raise IOError
+
+    def move(self):
+        if len(self.tokens) > 2 or len(self.tokens) < 1:
+            raise IOError
+        else:
+            old_location = self.player.getLocation().copy()
+            self.player.move(self.tokens[1])
+            if self.outside_of_map():
+                print("You can't go that way")
+                self.player.setLocation(old_location)
+            if not self.level.getPosition(*self.player.getLocation()).isPassable():
+                print(level.level_map[player.location[0]][player.location[1]].biome.description)
+                print("You determine this route is impassable and return the way you came")
+                self.player.setLocation(old_location)
+
+    def get_status(self,tokens):
+        if len(tokens) > 2:
+            raise IOError
+        elif len(tokens) == 2:
+            _ = {
+                "coords": player.location,
+                "health": player.health,
+                "inventory":str(list(player.items.values())),
+            }
+            if tokens[1] in _.keys():
+                print(_[tokens[1]])
+        else:
+            raise IOError
+
+
+    def player_turn(self):
+        try:
+            self.get_command()
+        except IOError:
+            print("something went wrong, try again")
+            self.get_command()
+
+    def use_item(self):
+        try:
+            if self.player.checkInventory(self.tokens[1]):
+                item:Weapons = player.getItem(self.tokens[1])
+                if isinstance(item, Weapons):
+                    self.tokens.remove(self.tokens[1])
+                    self.weapon = item.attack
+                    self.attack()
+                else:
+                    raise IOError
+            else:
+                raise IOError
+        except IndexError:
+            raise IOError
+
+    def outside_of_map(self) -> bool:
+        return self.level.out_of_bounds(*self.player.getLocation())
+
+
+
+
+def main(level=Level(),npcs=[]):
+    print(disclaimer)
+    player = setupPlayer()
+    game = Game(player, npcs, level)
+    game.gameLoop()
+    
+def setupPlayer()->Character:
+    print("what is you name?:")
+    player_name = input()
+    return assignClass(player_name)
+
+def assignClass(player_name)->Character:
+    print("Please select your class. \nChoose either; Warior, Explorer or Scholar:")
+    player_class = input()
+    inventory = Inventory(6)
+    if player_class in ("w","W","warior","Warior","WARIOR"):
+        return Warior(player_name, inventory)
+    elif player_class in ("e","E","explorer","Explorer","EXPLORER"):
+        return Explorer(player_name, inventory)
+    elif player_class in ("s","S","scholar","Scholar","SCHOLAR"):
+        return Scholar(player_name, inventory)
+    else:
+        print("Something went wrong lets try again")
+        assignClass(player_name)
+
 
 
 if __name__ == "__main__":
@@ -165,15 +194,19 @@ if __name__ == "__main__":
     forest.passable = True
     
     l = [
-        [Tile(biome=forest),Tile(biome=forest),Tile(biome=forest)],
-        [Tile(biome=forest),Tile(biome=forest),Tile(biome=forest)],
-        [Tile(biome=forest),Tile(biome=forest),Tile(biome=forest)]
+        [Tile(forest),Tile(forest),Tile(forest)],
+        [Tile(forest),Tile(forest),Tile(forest)],
+        [Tile(forest),Tile(forest),Tile(forest)]
         ]
     level = Level().manual(l)
 
-    gru = NPC("gru", [2,2])
+    gru = NPC("gru", Coordinates(1, 1),Inventory(3))
     npcs={
         gru.name:gru,
     }
 
-    main(level, npcs)
+    # main(level, npcs)
+
+    player = Character("ant", Inventory(4))
+    g = Game(player, npcs, level)
+    g.gameLoop()
