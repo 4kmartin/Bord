@@ -42,9 +42,9 @@ class Game:
         if self.tokens[1] in self.npcs.keys():
             if self.npcs[self.tokens[1]].location == self.player.location:
                 hit = self.player.hit(self.roll(),self.weapon)
-                self.npcs[self.tokens[1]].health -= hit
+                self.npcs[self.tokens[1]].takeDamage(hit) 
                 print("you attack a %s for %s points of damage.\nThe %s has %s/100 health" % (self.tokens[1], hit,self.tokens[1],self.npcs[self.tokens[1]].health))
-                if npcs[tokens[1]].health < 1:
+                if self.npcs[self.tokens[1]].getHealth() < 1:
                     print("You have defeated the %s" % self.tokens[1])
                     self.npcs.pop(self.tokens[1])
             else:
@@ -65,9 +65,8 @@ class Game:
     
     def gameLoop(self):
         while True:
-            print(f"{self.player.getLocation()}")
             loc = self.level.getPosition(*self.player.getLocation())
-            print(loc.biome.description)
+            print(loc.getDescription())
             if len(loc.visible) > 0:
                 print("You see:")
                 for item in loc.visible:
@@ -109,25 +108,24 @@ class Game:
         else:
             old_location = self.player.getLocation().copy()
             self.player.move(self.tokens[1])
-            if self.outside_of_map():
-                print("You can't go that way")
-                self.player.setLocation(old_location)
-            if not self.level.getPosition(*self.player.getLocation()).isPassable():
-                print(level.level_map[player.location[0]][player.location[1]].biome.description)
+            new_location = self.level.getPosition(*self.player.getLocation())
+            if not new_location.isPassable():
+                print(f"You find yourself in {new_location.getDescription()}")
                 print("You determine this route is impassable and return the way you came")
                 self.player.setLocation(old_location)
 
-    def get_status(self,tokens):
-        if len(tokens) > 2:
+    def get_status(self):
+        if len(self.tokens) > 2:
             raise IOError
-        elif len(tokens) == 2:
+        elif len(self.tokens) == 2:
             _ = {
-                "coords": player.location,
-                "health": player.health,
-                "inventory":str(list(player.items.values())),
+                "coords": self.player.getLocation(),
+                "health": self.player.health,
+                "inventory":self.player.getInventory(),
+                "map":self.level.showMap()
             }
-            if tokens[1] in _.keys():
-                print(_[tokens[1]])
+            if self.tokens[1] in _.keys():
+                print(_[self.tokens[1]])
         else:
             raise IOError
 
@@ -153,10 +151,6 @@ class Game:
                 raise IOError
         except IndexError:
             raise IOError
-
-    def outside_of_map(self) -> bool:
-        return self.level.out_of_bounds(*self.player.getLocation())
-
 
 
 
@@ -189,9 +183,7 @@ def assignClass(player_name)->Character:
 
 if __name__ == "__main__":
 
-    forest = Biome()
-    forest.description = "You are in a Forest"
-    forest.passable = True
+    forest = Biome().new("You are in a Forest", True)
     
     l = [
         [Tile(forest),Tile(forest),Tile(forest)],

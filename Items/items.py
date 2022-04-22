@@ -83,6 +83,12 @@ class Inventory:
     def __getitem__(self,key):
         return self.contents[key]        
 
+    def __repr__(self) ->str:
+        inventory = ""
+        for item in self.contents:
+            inventory += "{item}"
+
+        return inventory
         
 
 class LootTable:

@@ -21,6 +21,9 @@ class Coordinates:
     def __repr__(self) -> str:
         return f"(x:{self.x} y:{self.y})"
 
+    def __eq__(self, other) -> bool:
+        return self.x == other.x and self.y == other.y
+
 
 class Character:
 
@@ -81,6 +84,14 @@ class Character:
     def checkInventory(self, item_name) -> bool:
         return item_name in self.inventory.keys()
 
+    def getInventory(self):
+        return self.inventory
+    
+    def takeDamage(self, hit:int):
+        self.health -= hit
+    
+    def getHealth(self) -> int:
+        return self.health
 
 class Warior(Character):
     
@@ -118,7 +129,7 @@ class NPC(Character):
         self.location = start_location
 
     def turn(self, player:Character, roll:int):
-        if player.location == self.location and player.getVisibility(roll):
+        if player.location == self.location:# and player.getVisibility(roll):
             hit = self.hit(roll)
             player.health -= hit
             print("You were hit by a %s for %s points, your health is now %s/100" % (self.name,hit,player.health))

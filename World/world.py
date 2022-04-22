@@ -8,9 +8,13 @@ class Biome:
     def new(self, description:str, passable:bool):
         self.description = description
         self.passable = passable
+        return self
 
     def isPassable(self)->bool:
         return self.passable
+
+    def getDescription(self) -> str:
+        return self.description
 
 
 class Tile:
@@ -27,7 +31,13 @@ class Tile:
                 self.visible.append(i)
 
     def isPassable(self) -> bool:
-        return self.biome.isPassable
+        return self.biome.isPassable()
+
+    def getDescription(self) -> str:
+        return self.biome.getDescription()
+
+    def __repr__(self) -> str:
+        return f"{self.getDescription()}"
             
 
 class Level:
@@ -72,13 +82,19 @@ class Level:
         "returns the information contained at a given coordinate"
         return self[x, y]
 
+    def showMap(self)->list[list[Tile]]:
+        width = self.size_x * 2 + 1
+        height = self.size_y * 2 + 1
+        out = []
+        for i in range(0,len(self.level_map), width):
+            out.append(self.level_map[i:i+width])
+        return out
+
     def __iter__(self):
         for i in self.level_map:
             yield i
 
     def out_of_bounds(self, x, y)->bool:
-        print(f"x:{x} y:{y}\nxsize:{self.size_x} ysize:{self.size_y}")
-        print(not (-self.size_x < x < self.size_x or -self.size_y < y < self.size_y))
         return not (-self.size_x < x < self.size_x or -self.size_y < y < self.size_y)
 
     def __getitem__(self,coord)->Tile:
@@ -87,8 +103,12 @@ class Level:
         width = self.size_x * 2 + 1 
         middle = self.size_x + 1 + self.size_y + 1
         index = middle + x + (y * width)
-        if middle * 2 > index > 0 and x <= self.size_x and y <= self.size_y:
+        if middle * 2 >= index > 0 and x <= self.size_x and y <= self.size_y:
             return self.level_map[index]
         else:
-            return Tile(Biome.new("A Dence Fog",False))
+            return Tile(Biome().new("A Dence Fog",False))
 
+
+
+if __name__ == "__main__":
+    print(Level().new((1,1)).showMap())
